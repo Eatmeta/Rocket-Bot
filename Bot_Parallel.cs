@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace rocket_bot
 {
@@ -6,10 +8,19 @@ namespace rocket_bot
     {
         public Rocket GetNextMove(Rocket rocket)
         {
-            // TODO: распараллелить запуск SearchBestMove
-            var bestMove = SearchBestMove(rocket, new Random(Random.Next()), IterationsCount);
-            var newRocket = rocket.Move(bestMove.Item1, Level);
-            return newRocket;
+            var tasks = new Task<Tuple<Turn, double>>[ThreadsCount];
+
+            for (var i = 0; i < ThreadsCount; i++)
+            {
+                tasks[i] = Task.Run(() =>
+                    SearchBestMove(rocket, new Random(new Random(i).Next()), IterationsCount / ThreadsCount));
+            }
+
+            while (true)
+            {
+                if (tasks.All(t => t.IsCompleted))
+                    return rocket.Move(tasks.OrderByDescending(r => r.Result.Item2).First().Result.Item1, Level);
+            }
         }
     }
 }
